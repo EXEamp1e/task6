@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - ./backend/.env
+    environment:
+      - REDIS_MASTER_HOST=redis-master
+      - REDIS_MASTER_PORT=6379
+      - REDIS_SLAVE_HOST=redis-slave
+      - REDIS_SLAVE_PORT=6379
+    depends_on:
+      - redis-master
+      - redis-slave
+    restart: always
+    deploy:
+      replicas: 4
+
+  redis-master:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "60", "1", "--appendonly", "yes"]
+    volumes:
+      - redis_master_data:/data
+    restart: always
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.role == worker]
+
+  redis-slave:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "60", "1", "--appendonly", "yes", "--replicaof", "redis-master", "6379"]
+    volumes:
+      - redis_slave_data:/data
+    restart: always
+    depends_on:
+      - redis-master
+    deploy:
+      replicas: 2
+      placement:
+        constraints: [node.role == worker]
+
+volumes:
+  redis_master_data:
+  redis_slave_data:

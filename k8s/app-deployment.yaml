@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: app
+          image: 127.0.0.1:5000/app
+          envFrom:
+            - secretRef:
+                name: app-env-secret
+          env:
+            - name: REDIS_MASTER_HOST
+              value: "redis-master"
+            - name: REDIS_MASTER_PORT
+              value: "6379"
+            - name: REDIS_SLAVE_HOST
+              value: "redis-slave"
+            - name: REDIS_SLAVE_PORT
+              value: "6379"
+          ports:
+            - containerPort: 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app
+spec:
+  selector:
+    app: backend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
